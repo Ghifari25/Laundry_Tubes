@@ -2,7 +2,7 @@ pipeline {
     agent any
     environment {
         DOCKER_IMAGE = 'laundryy-syifa'
-        NETWORK_NAME = 'laundryy-syifa'
+        NETWORK_NAME = 'laundryy-network'
         MYSQL_ROOT_PASSWORD = 'syifa123'
         MYSQL_DATABASE = 'homestead2091'
     }
@@ -11,14 +11,24 @@ pipeline {
             steps {
                 echo 'Checking Docker environment and cleaning up previous resources...'
                 script {
-                    sh '''
-                    docker --version || { echo "Docker is not installed"; exit 1; }
-                    docker-compose --version || { echo "Docker Compose is not installed"; exit 1; }
-                    
-                    echo "Stopping and cleaning up previous containers..."
-                    docker-compose down || true
-                    docker network rm ${NETWORK_NAME} || true
-                    '''
+                    try {
+                        sh '''
+                        set -e
+                        echo "Checking if Docker is installed..."
+                        docker --version || { echo "Docker is not installed"; exit 1; }
+
+                        echo "Checking if Docker Compose is installed..."
+                        docker-compose --version || { echo "Docker Compose is not installed"; exit 1; }
+
+                        echo "Stopping and cleaning up previous containers..."
+                        docker-compose down || true
+
+                        echo "Removing Docker network if exists..."
+                        docker network rm ${NETWORK_NAME} || echo "Network does not exist, skipping."
+                        '''
+                    } catch (Exception e) {
+                        error "Preparation stage failed: ${e.message}"
+                    }
                 }
             }
         }
@@ -47,7 +57,7 @@ pipeline {
                         sh '''
                         docker-compose up -d
                         echo "Containers are starting, waiting for services to initialize..."
-                        sleep 15
+                        sleep 20
                         
                         echo "Showing running containers:"
                         docker ps
@@ -69,7 +79,7 @@ pipeline {
                         docker ps | grep ${DOCKER_IMAGE} || { echo "Application container not running!"; exit 1; }
 
                         echo "Checking application accessibility on port 2022..."
-                        curl -I http://localhost:2022 -m 10 || { echo "Application not reachable!"; exit 1; }
+                        curl -I http://localhost:2022 -m 15 || { echo "Application not reachable!"; exit 1; }
                         '''
                     } catch (Exception e) {
                         error "Application validation failed: ${e.message}"
@@ -116,6 +126,7 @@ pipeline {
         }
     }
 }
+
 
 
 

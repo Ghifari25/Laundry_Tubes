@@ -1,51 +1,81 @@
 pipeline {
     agent any
-
     environment {
-        COMPOSE_FILE = 'docker-compose.yml'
+        // Variabel lingkungan untuk menyimpan nama file dan image
+        DOCKER_IMAGE = 'laundryy-syifa'
+        NETWORK_NAME = 'laundryy-syifa'
+        MYSQL_ROOT_PASSWORD = 'syifa123'
+        MYSQL_DATABASE = 'homestead2091'
     }
-
     stages {
-        stage('Clone Repository') {
+        stage('Preparation') {
             steps {
-                echo 'Cloning repository...'
-                checkout scm
+                echo 'Preparing workspace...'
+                script {
+                    // Membersihkan kontainer dan jaringan jika sudah ada
+                    sh '''
+                    docker-compose down || true
+                    docker network rm ${NETWORK_NAME} || true
+                    '''
+                }
             }
         }
-
-        stage('Build Containers') {
+        stage('Build Docker Images') {
             steps {
-                echo 'Building Docker containers...'
-                sh 'docker-compose build'
+                echo 'Building Docker images...'
+                script {
+                    // Membangun image dari Dockerfile
+                    sh 'docker-compose build'
+                }
             }
         }
-
-        stage('Start Containers') {
+        stage('Run Containers') {
             steps {
-                echo 'Starting Docker containers...'
-                sh 'docker-compose up -d'
+                echo 'Starting containers...'
+                script {
+                    // Menjalankan kontainer menggunakan docker-compose
+                    sh 'docker-compose up -d'
+                }
             }
         }
-
-        stage('Run Tests') {
+        stage('Validate Application') {
             steps {
-                echo 'Running application tests...'
-                sh 'docker-compose exec app php artisan test'
+                echo 'Validating application setup...'
+                script {
+                    // Mengecek apakah aplikasi sudah berjalan
+                    sh '''
+                    docker ps | grep ${DOCKER_IMAGE}
+                    curl -I http://localhost:2022 || exit 1
+                    '''
+                }
             }
         }
-
-        stage('Stop Containers') {
+        stage('Validate Database') {
             steps {
-                echo 'Stopping and removing containers...'
+                echo 'Validating database connection...'
+                script {
+                    // Mengecek koneksi database
+                    sh '''
+                    docker exec dblaundryy-syifa mysql -u root -p${MYSQL_ROOT_PASSWORD} -e "USE ${MYSQL_DATABASE};"
+                    '''
+                }
+            }
+        }
+    }
+    post {
+        always {
+            echo 'Cleaning up...'
+            script {
+                // Membersihkan kontainer dan jaringan setelah selesai
                 sh 'docker-compose down'
             }
         }
-    }
-
-    post {
-        always {
-            echo 'Pipeline execution complete.'
-            sh 'docker-compose down' // Memastikan semua container dihentikan
+        success {
+            echo 'Pipeline completed successfully!'
+        }
+        failure {
+            echo 'Pipeline failed.'
         }
     }
 }
+

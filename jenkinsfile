@@ -5,89 +5,113 @@ pipeline {
         NETWORK_NAME = 'laundryy-syifa'
         MYSQL_ROOT_PASSWORD = 'syifa123'
         MYSQL_DATABASE = 'homestead2091'
-        APP_PORT = '2022'
-        DB_PORT = '20222'
     }
     stages {
         stage('Preparation') {
             steps {
-                echo 'Preparing workspace and cleaning up previous runs...'
+                echo 'Preparing workspace and checking environment...'
                 script {
-                    // Memastikan Docker dan Docker Compose tersedia
+                    // Memastikan Docker dan Docker Compose terinstal
                     sh '''
-                    docker --version || (echo "Docker is not installed!" && exit 1)
-                    docker-compose --version || (echo "Docker Compose is not installed!" && exit 1)
+                    docker --version || { echo "Docker is not installed"; exit 1; }
+                    docker-compose --version || { echo "Docker Compose is not installed"; exit 1; }
                     '''
-                    // Membersihkan kontainer dan jaringan yang tersisa
+                    
+                    // Bersihkan layanan yang berjalan sebelumnya
                     sh '''
                     docker-compose down || true
-                    docker network prune -f || true
+                    docker network rm ${NETWORK_NAME} || true
                     '''
                 }
             }
         }
+
         stage('Build Docker Images') {
             steps {
                 echo 'Building Docker images...'
                 script {
-                    // Build Docker images
-                    sh '''
-                    docker-compose build || (echo "Docker image build failed!" && exit 1)
-                    '''
+                    try {
+                        // Build Docker images
+                        sh 'docker-compose build --no-cache --pull'
+                    } catch (Exception e) {
+                        error "Failed to build Docker images: ${e.message}"
+                    }
                 }
             }
         }
+
         stage('Run Containers') {
             steps {
-                echo 'Starting Docker containers...'
+                echo 'Starting containers...'
                 script {
-                    // Start Docker containers
-                    sh '''
-                    docker-compose up -d || (echo "Failed to start containers!" && exit 1)
-                    '''
+                    try {
+                        // Jalankan kontainer
+                        sh 'docker-compose up -d'
+                        
+                        // Tunggu agar kontainer siap
+                        echo 'Waiting for containers to initialize...'
+                        sleep(15)
+                        
+                        // Tampilkan kontainer yang sedang berjalan
+                        sh 'docker ps'
+                    } catch (Exception e) {
+                        error "Failed to start containers: ${e.message}"
+                    }
                 }
             }
         }
+
         stage('Validate Application') {
             steps {
-                echo 'Validating application container and services...'
+                echo 'Validating application setup...'
                 script {
-                    // Validate application container
-                    sh '''
-                    docker ps | grep ${DOCKER_IMAGE} || (echo "App container is not running!" && exit 1)
-                    curl -s -o /dev/null -w "%{http_code}" http://localhost:${APP_PORT} | grep 200 || (echo "Application is not reachable on port ${APP_PORT}!" && exit 1)
-                    '''
+                    try {
+                        // Validasi aplikasi berjalan di NGINX
+                        sh '''
+                        docker ps | grep ${DOCKER_IMAGE} || { echo "Application container not running!"; exit 1; }
+                        curl -I http://localhost:2022 -m 10 || { echo "Application not reachable!"; exit 1; }
+                        '''
+                    } catch (Exception e) {
+                        error "Application validation failed: ${e.message}"
+                    }
                 }
             }
         }
+
         stage('Validate Database') {
             steps {
                 echo 'Validating database connection...'
                 script {
-                    // Validate database connection
-                    sh '''
-                    docker exec dblaundryy-syifa mysql -u root -p${MYSQL_ROOT_PASSWORD} -e "SHOW DATABASES;" | grep ${MYSQL_DATABASE} || (echo "Database validation failed!" && exit 1)
-                    '''
+                    try {
+                        // Validasi koneksi ke database
+                        sh '''
+                        docker exec $(docker ps -qf "name=dblaundryy-syifa") mysql -uroot -p${MYSQL_ROOT_PASSWORD} -e "USE ${MYSQL_DATABASE};" || { echo "Database validation failed!"; exit 1; }
+                        '''
+                    } catch (Exception e) {
+                        error "Database validation failed: ${e.message}"
+                    }
                 }
             }
         }
     }
+
     post {
         always {
-            echo 'Cleaning up containers and networks...'
+            echo 'Cleaning up containers and network...'
             script {
-                // Cleanup after pipeline execution
+                // Bersihkan semua layanan setelah pipeline selesai
                 sh 'docker-compose down'
             }
         }
         success {
-            echo 'Pipeline executed successfully!'
+            echo 'Pipeline completed successfully!'
         }
         failure {
-            echo 'Pipeline failed. Check the logs for details.'
+            echo 'Pipeline failed. Please check the logs for details.'
         }
     }
 }
+
 
 
 

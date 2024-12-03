@@ -9,16 +9,13 @@ pipeline {
     stages {
         stage('Preparation') {
             steps {
-                echo 'Preparing workspace and checking environment...'
+                echo 'Checking Docker environment and cleaning up previous resources...'
                 script {
-                    // Memastikan Docker dan Docker Compose terinstal
                     sh '''
                     docker --version || { echo "Docker is not installed"; exit 1; }
                     docker-compose --version || { echo "Docker Compose is not installed"; exit 1; }
-                    '''
                     
-                    // Bersihkan layanan yang berjalan sebelumnya
-                    sh '''
+                    echo "Stopping and cleaning up previous containers..."
                     docker-compose down || true
                     docker network rm ${NETWORK_NAME} || true
                     '''
@@ -31,8 +28,10 @@ pipeline {
                 echo 'Building Docker images...'
                 script {
                     try {
-                        // Build Docker images
-                        sh 'docker-compose build --no-cache --pull'
+                        sh '''
+                        echo "Building images with Docker Compose..."
+                        docker-compose build --no-cache --pull
+                        '''
                     } catch (Exception e) {
                         error "Failed to build Docker images: ${e.message}"
                     }
@@ -42,18 +41,17 @@ pipeline {
 
         stage('Run Containers') {
             steps {
-                echo 'Starting containers...'
+                echo 'Starting containers with Docker Compose...'
                 script {
                     try {
-                        // Jalankan kontainer
-                        sh 'docker-compose up -d'
+                        sh '''
+                        docker-compose up -d
+                        echo "Containers are starting, waiting for services to initialize..."
+                        sleep 15
                         
-                        // Tunggu agar kontainer siap
-                        echo 'Waiting for containers to initialize...'
-                        sleep(15)
-                        
-                        // Tampilkan kontainer yang sedang berjalan
-                        sh 'docker ps'
+                        echo "Showing running containers:"
+                        docker ps
+                        '''
                     } catch (Exception e) {
                         error "Failed to start containers: ${e.message}"
                     }
@@ -63,12 +61,14 @@ pipeline {
 
         stage('Validate Application') {
             steps {
-                echo 'Validating application setup...'
+                echo 'Validating application container...'
                 script {
                     try {
-                        // Validasi aplikasi berjalan di NGINX
                         sh '''
+                        echo "Checking if application container is running..."
                         docker ps | grep ${DOCKER_IMAGE} || { echo "Application container not running!"; exit 1; }
+
+                        echo "Checking application accessibility on port 2022..."
                         curl -I http://localhost:2022 -m 10 || { echo "Application not reachable!"; exit 1; }
                         '''
                     } catch (Exception e) {
@@ -83,8 +83,11 @@ pipeline {
                 echo 'Validating database connection...'
                 script {
                     try {
-                        // Validasi koneksi ke database
                         sh '''
+                        echo "Checking if database container is running..."
+                        docker ps | grep dblaundryy-syifa || { echo "Database container not running!"; exit 1; }
+
+                        echo "Validating database connection..."
                         docker exec $(docker ps -qf "name=dblaundryy-syifa") mysql -uroot -p${MYSQL_ROOT_PASSWORD} -e "USE ${MYSQL_DATABASE};" || { echo "Database validation failed!"; exit 1; }
                         '''
                     } catch (Exception e) {
@@ -97,20 +100,23 @@ pipeline {
 
     post {
         always {
-            echo 'Cleaning up containers and network...'
+            echo 'Cleaning up containers and networks...'
             script {
-                // Bersihkan semua layanan setelah pipeline selesai
-                sh 'docker-compose down'
+                sh '''
+                docker-compose down
+                echo "Cleanup completed."
+                '''
             }
         }
         success {
             echo 'Pipeline completed successfully!'
         }
         failure {
-            echo 'Pipeline failed. Please check the logs for details.'
+            echo 'Pipeline failed. Please check the logs above for details.'
         }
     }
 }
+
 
 
 

@@ -1,7 +1,6 @@
 pipeline {
     agent any
     environment {
-        // Variabel lingkungan untuk menyimpan nama file dan image
         DOCKER_IMAGE = 'laundryy-syifa'
         NETWORK_NAME = 'laundryy-syifa'
         MYSQL_ROOT_PASSWORD = 'syifa123'
@@ -12,7 +11,10 @@ pipeline {
             steps {
                 echo 'Preparing workspace...'
                 script {
-                    // Membersihkan kontainer dan jaringan jika sudah ada
+                    // Debug log untuk environment
+                    sh 'docker-compose version || echo "Docker Compose is not installed!"'
+                    sh 'docker version || echo "Docker is not installed!"'
+                    // Bersihkan kontainer jika ada
                     sh '''
                     docker-compose down || true
                     docker network rm ${NETWORK_NAME} || true
@@ -24,8 +26,12 @@ pipeline {
             steps {
                 echo 'Building Docker images...'
                 script {
-                    // Membangun image dari Dockerfile
-                    sh 'docker-compose build'
+                    try {
+                        sh 'docker-compose build'
+                    } catch (Exception e) {
+                        error "Docker image
+                        build failed: ${e.message}"
+                    }
                 }
             }
         }
@@ -33,8 +39,11 @@ pipeline {
             steps {
                 echo 'Starting containers...'
                 script {
-                    // Menjalankan kontainer menggunakan docker-compose
-                    sh 'docker-compose up -d'
+                    try {
+                        sh 'docker-compose up -d'
+                    } catch (Exception e) {
+                        error "Failed to start containers: ${e.message}"
+                    }
                 }
             }
         }
@@ -42,11 +51,15 @@ pipeline {
             steps {
                 echo 'Validating application setup...'
                 script {
-                    // Mengecek apakah aplikasi sudah berjalan
-                    sh '''
-                    docker ps | grep ${DOCKER_IMAGE}
-                    curl -I http://localhost:2022 || exit 1
-                    '''
+                    try {
+                        // Check if app container is running
+                        sh '''
+                        docker ps | grep ${DOCKER_IMAGE} || (echo "App container is not running!" && exit 1)
+                        curl -I http://localhost:2022 || (echo "Application not reachable!" && exit 1)
+                        '''
+                    } catch (Exception e) {
+                        error "Application validation failed: ${e.message}"
+                    }
                 }
             }
         }
@@ -54,10 +67,14 @@ pipeline {
             steps {
                 echo 'Validating database connection...'
                 script {
-                    // Mengecek koneksi database
-                    sh '''
-                    docker exec dblaundryy-syifa mysql -u root -p${MYSQL_ROOT_PASSWORD} -e "USE ${MYSQL_DATABASE};"
-                    '''
+                    try {
+                        // Check database connection
+                        sh '''
+                        docker exec dblaundryy-syifa mysql -u root -p${MYSQL_ROOT_PASSWORD} -e "USE ${MYSQL_DATABASE};" || (echo "Database validation failed!" && exit 1)
+                        '''
+                    } catch (Exception e) {
+                        error "Database validation failed: ${e.message}"
+                    }
                 }
             }
         }
@@ -66,7 +83,7 @@ pipeline {
         always {
             echo 'Cleaning up...'
             script {
-                // Membersihkan kontainer dan jaringan setelah selesai
+                // Always clean up containers
                 sh 'docker-compose down'
             }
         }
@@ -78,4 +95,5 @@ pipeline {
         }
     }
 }
+
 

@@ -7,16 +7,18 @@ pipeline {
 
     stages {
 
-        stage("Clone Repository") {
+        stage("Checkout Repository") {
             steps {
-                echo "Cloning Repository..."
-                checkout scm
+                echo "Checking out GitHub repository..."
+                checkout([$class: 'GitSCM', branches: [[name: '*/main']], 
+                          userRemoteConfigs: [[url: 'https://github.com/Ghifari25/Laundry_Tubes.git', 
+                          credentialsId: 'github-credentials-id']]])
             }
         }
 
         stage("Validate Docker Compose") {
             steps {
-                echo "Validating docker-compose.yml..."
+                echo "Validating Docker Compose file..."
                 sh 'docker-compose config'
             }
         }
@@ -37,10 +39,19 @@ pipeline {
 
         stage("Run Tests") {
             steps {
-                echo "Running Laravel Tests..."
+                echo "Installing Composer dependencies..."
                 sh 'docker-compose exec app composer install'
+                
+                echo "Generating application key..."
                 sh 'docker-compose exec app php artisan key:generate'
+                
+                echo "Clearing and caching configuration..."
                 sh 'docker-compose exec app php artisan config:clear'
+                
+                echo "Running database migrations..."
+                sh 'docker-compose exec app php artisan migrate --force'
+                
+                echo "Running Laravel Tests..."
                 sh 'docker-compose exec app php artisan test'
             }
         }

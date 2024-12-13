@@ -16,12 +16,12 @@ pipeline {
             }
         }
 
-        stage("Validate Docker Compose") {
-            steps {
-                echo "Validating Docker Compose file..."
-                sh 'docker-compose config'
-            }
+    stage("Validate Docker Compose") {
+        steps {
+            echo "Validating Docker Compose file..."
+            sh 'docker-compose -f docker-compose.yml config'
         }
+    }
 
         stage("Build Containers") {
             steps {

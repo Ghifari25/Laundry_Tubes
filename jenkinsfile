@@ -25,6 +25,9 @@ pipeline {
 
                         echo "Removing Docker network if exists..."
                         docker network rm ${NETWORK_NAME} || echo "Network does not exist, skipping."
+
+                        echo "Creating Docker network..."
+                        docker network create ${NETWORK_NAME} || echo "Network already exists, skipping."
                         '''
                     } catch (Exception e) {
                         error "Preparation stage failed: ${e.message}"
@@ -57,7 +60,7 @@ pipeline {
                         sh '''
                         docker-compose up -d
                         echo "Containers are starting, waiting for services to initialize..."
-                        sleep 20
+                        sleep 30  # Increased wait time for services to initialize
                         
                         echo "Showing running containers:"
                         docker ps
@@ -126,9 +129,3 @@ pipeline {
         }
     }
 }
-
-
-
-
-
-

@@ -3,14 +3,14 @@ pipeline {
 
     environment {
         DOCKER_IMAGE = 'laundryy-syifa'
-        DOCKER_REGISTRY = 'your-docker-registry' // Ganti dengan registry Docker Anda jika diperlukan
+        DOCKER_REGISTRY = 'docker.io/username' // Ganti dengan registry Docker Anda
     }
 
     stages {
         stage('Checkout') {
             steps {
                 // Mengambil kode dari repositori Anda
-                git 'https://github.com/Ghifari25/Laundry_Tubes' // Ganti dengan URL repositori Anda
+                git 'https://your-repo-url.git' // Ganti dengan URL repositori Anda
             }
         }
 
@@ -35,7 +35,7 @@ pipeline {
         stage('Push Docker Image') {
             steps {
                 script {
-                    // Login ke registry Docker jika diperlukan
+                    // Login ke Docker registry jika diperlukan
                     // sh "echo ${DOCKER_PASSWORD} | docker login -u ${DOCKER_USERNAME} --password-stdin ${DOCKER_REGISTRY}"
                     
                     // Mengunggah gambar Docker ke registry

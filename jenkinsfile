@@ -2,63 +2,29 @@ pipeline {
     agent any
 
     environment {
-        DOCKER_IMAGE = 'laundryy-syifa'
-        DOCKER_REGISTRY = 'docker.io/username' // Ganti dengan registry Docker Anda
-    }
-
+		DOCKERHUB_CREDENTIALS=credentials('dockerhub')
+	}
     stages {
-        stage('Checkout') {
+        stage('Docker Login') {
             steps {
-                // Mengambil kode dari repositori Anda
-                git 'https://your-repo-url.git' // Ganti dengan URL repositori Anda
+                sh 'echo $DOCKERHUB_CREDENTIALS_PSW | docker login -u $DOCKERHUB_CREDENTIALS_USR --password-stdin'
             }
         }
-
-        stage('Build Docker Image') {
+        stage('Build & push Dockerfile') {
             steps {
-                script {
-                    // Membangun gambar Docker
-                    sh "docker build -t ${DOCKER_IMAGE} ."
-                }
+                sh """
+                cd laravel-app
+                ansible-playbook playbook.yml
+                """
             }
         }
-
-        stage('Run Tests') {
+        stage('Run Dockercompose playbook') {
             steps {
-                script {
-                    // Jalankan tes Anda di sini
-                    // Contoh: sh 'docker run --rm ${DOCKER_IMAGE} phpunit'
-                }
+                sh """
+                cd laravel-app
+                ansible-playbook playbook-dcompose.yml 
+                """
             }
-        }
-
-        stage('Push Docker Image') {
-            steps {
-                script {
-                    // Login ke Docker registry jika diperlukan
-                    // sh "echo ${DOCKER_PASSWORD} | docker login -u ${DOCKER_USERNAME} --password-stdin ${DOCKER_REGISTRY}"
-                    
-                    // Mengunggah gambar Docker ke registry
-                    sh "docker tag ${DOCKER_IMAGE} ${DOCKER_REGISTRY}/${DOCKER_IMAGE}:latest"
-                    sh "docker push ${DOCKER_REGISTRY}/${DOCKER_IMAGE}:latest"
-                }
-            }
-        }
-
-        stage('Deploy') {
-            steps {
-                script {
-                    // Men-deploy aplikasi Anda
-                    // Contoh: sh 'docker-compose up -d'
-                }
-            }
-        }
-    }
-
-    post {
-        always {
-            // Membersihkan gambar dan kontainer Docker
-            sh "docker system prune -f"
         }
     }
 }

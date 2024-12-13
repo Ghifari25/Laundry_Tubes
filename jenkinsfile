@@ -1,10 +1,61 @@
-pipeline{
-	agent any
-	stages {
-		stage("hello"){
-			steps{
-				echo "my jenkins pipeline"
-			}
-		}
-	}
+pipeline {
+    agent any
+
+    environment {
+        COMPOSE_PROJECT_NAME = "laundryy_syifa"
+    }
+
+    stages {
+
+        stage("Clone Repository") {
+            steps {
+                echo "Cloning Repository..."
+                checkout scm
+            }
+        }
+
+        stage("Build Containers") {
+            steps {
+                echo "Building Docker containers..."
+                sh 'docker-compose build'
+            }
+        }
+
+        stage("Start Containers") {
+            steps {
+                echo "Starting Docker containers..."
+                sh 'docker-compose up -d'
+            }
+        }
+
+        stage("Run Tests") {
+            steps {
+                echo "Running Laravel Tests..."
+                sh 'docker-compose exec app composer install'
+                sh 'docker-compose exec app php artisan key:generate'
+                sh 'docker-compose exec app php artisan config:clear'
+                sh 'docker-compose exec app php artisan test'
+            }
+        }
+
+        stage("Stop Containers") {
+            steps {
+                echo "Stopping Docker containers..."
+                sh 'docker-compose down'
+            }
+        }
+    }
+
+    post {
+        always {
+            echo "Cleaning up unused Docker resources..."
+            sh 'docker system prune -f'
+        }
+        success {
+            echo "Pipeline executed successfully!"
+        }
+        failure {
+            echo "Pipeline execution failed. Please check the logs."
+        }
+    }
 }

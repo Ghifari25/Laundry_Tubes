@@ -1,111 +1,55 @@
 pipeline {
     agent any
+
     environment {
         DOCKER_IMAGE = 'laundryy-syifa'
-        NETWORK_NAME = 'laundryy-network'
-        MYSQL_ROOT_PASSWORD = 'syifa123'
-        MYSQL_DATABASE = 'homestead2091'
+        DOCKER_REGISTRY = 'your-docker-registry' // Ganti dengan registry Docker Anda jika diperlukan
     }
+
     stages {
-        stage('Preparation') {
+        stage('Checkout') {
             steps {
-                echo 'Checking Docker environment and cleaning up previous resources...'
+                // Mengambil kode dari repositori Anda
+                git 'https://github.com/Ghifari25/Laundry_Tubes' // Ganti dengan URL repositori Anda
+            }
+        }
+
+        stage('Build Docker Image') {
+            steps {
                 script {
-                    try {
-                        sh '''
-                        set -e
-                        echo "Checking if Docker is installed..."
-                        docker --version || { echo "Docker is not installed"; exit 1; }
-
-                        echo "Checking if Docker Compose is installed..."
-                        docker-compose --version || { echo "Docker Compose is not installed"; exit 1; }
-
-                        echo "Stopping and cleaning up previous containers..."
-                        docker-compose down || true
-
-                        echo "Removing Docker network if exists..."
-                        docker network rm ${NETWORK_NAME} || echo "Network does not exist, skipping."
-
-                        echo "Creating Docker network..."
-                        docker network create ${NETWORK_NAME} || echo "Network already exists, skipping."
-                        '''
-                    } catch (Exception e) {
-                        error "Preparation stage failed: ${e.message}"
-                    }
+                    // Membangun gambar Docker
+                    sh "docker build -t ${DOCKER_IMAGE} ."
                 }
             }
         }
 
-        stage('Build Docker Images') {
+        stage('Run Tests') {
             steps {
-                echo 'Building Docker images...'
                 script {
-                    try {
-                        sh '''
-                        echo "Building images with Docker Compose..."
-                        docker-compose build --no-cache --pull
-                        '''
-                    } catch (Exception e) {
-                        error "Failed to build Docker images: ${e.message}"
-                    }
+                    // Jalankan tes Anda di sini
+                    // Contoh: sh 'docker run --rm ${DOCKER_IMAGE} phpunit'
                 }
             }
         }
 
-        stage('Run Containers') {
+        stage('Push Docker Image') {
             steps {
-                echo 'Starting containers with Docker Compose...'
                 script {
-                    try {
-                        sh '''
-                        docker-compose up -d
-                        echo "Containers are starting, waiting for services to initialize..."
-                        sleep 30  # Increased wait time for services to initialize
-                        
-                        echo "Showing running containers:"
-                        docker ps
-                        '''
-                    } catch (Exception e) {
-                        error "Failed to start containers: ${e.message}"
-                    }
+                    // Login ke registry Docker jika diperlukan
+                    // sh "echo ${DOCKER_PASSWORD} | docker login -u ${DOCKER_USERNAME} --password-stdin ${DOCKER_REGISTRY}"
+                    
+                    // Mengunggah gambar Docker ke registry
+                    sh "docker tag ${DOCKER_IMAGE} ${DOCKER_REGISTRY}/${DOCKER_IMAGE}:latest"
+                    sh "docker push ${DOCKER_REGISTRY}/${DOCKER_IMAGE}:latest"
                 }
             }
         }
 
-        stage('Validate Application') {
+        stage('Deploy') {
             steps {
-                echo 'Validating application container...'
                 script {
-                    try {
-                        sh '''
-                        echo "Checking if application container is running..."
-                        docker ps | grep ${DOCKER_IMAGE} || { echo "Application container not running!"; exit 1; }
-
-                        echo "Checking application accessibility on port 2022..."
-                        curl -I http://localhost:2022 -m 15 || { echo "Application not reachable!"; exit 1; }
-                        '''
-                    } catch (Exception e) {
-                        error "Application validation failed: ${e.message}"
-                    }
-                }
-            }
-        }
-
-        stage('Validate Database') {
-            steps {
-                echo 'Validating database connection...'
-                script {
-                    try {
-                        sh '''
-                        echo "Checking if database container is running..."
-                        docker ps | grep dblaundryy-syifa || { echo "Database container not running!"; exit 1; }
-
-                        echo "Validating database connection..."
-                        docker exec $(docker ps -qf "name=dblaundryy-syifa") mysql -uroot -p${MYSQL_ROOT_PASSWORD} -e "USE ${MYSQL_DATABASE};" || { echo "Database validation failed!"; exit 1; }
-                        '''
-                    } catch (Exception e) {
-                        error "Database validation failed: ${e.message}"
-                    }
+                    // Men-deploy aplikasi Anda
+                    // Contoh: sh 'docker-compose up -d'
                 }
             }
         }
@@ -113,19 +57,8 @@ pipeline {
 
     post {
         always {
-            echo 'Cleaning up containers and networks...'
-            script {
-                sh '''
-                docker-compose down
-                echo "Cleanup completed."
-                '''
-            }
-        }
-        success {
-            echo 'Pipeline completed successfully!'
-        }
-        failure {
-            echo 'Pipeline failed. Please check the logs above for details.'
+            // Membersihkan gambar dan kontainer Docker
+            sh "docker system prune -f"
         }
     }
 }

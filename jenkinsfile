@@ -14,6 +14,13 @@ pipeline {
             }
         }
 
+        stage("Validate Docker Compose") {
+            steps {
+                echo "Validating docker-compose.yml..."
+                sh 'docker-compose config'
+            }
+        }
+
         stage("Build Containers") {
             steps {
                 echo "Building Docker containers..."

@@ -21,6 +21,7 @@ pipeline {
                     sh '''
                     echo "=== Current Directory ==="
                     pwd
+        
                     echo "=== Files in Directory ==="
                     ls -la
         
@@ -29,11 +30,13 @@ pipeline {
                         exit 1
                     fi
         
+                    echo "=== Starting Docker Build ==="
                     docker build -t $DOCKER_IMAGE .
                     '''
                 }
             }
         }
+
 
         stage('Run Docker Container') {
             steps {

@@ -32,23 +32,24 @@ pipeline {
             }
         }
 
-        stage('Run Docker Container') {
-            steps {
-                echo "Running Docker container..."
-                script {
-                    sh '''
-                    # Stop and remove existing container
-                    docker stop $DOCKER_CONTAINER || true
-                    docker rm $DOCKER_CONTAINER || true
+stage('Run Docker Container') {
+    steps {
+        echo "Running Docker container..."
+        script {
+            sh '''
+            echo "=== Stopping Existing Container ==="
+            docker stop $DOCKER_CONTAINER || true
+            docker rm $DOCKER_CONTAINER || true
 
-                    # Run new container
-                    docker run -d --name $DOCKER_CONTAINER -p 8000:8000 $DOCKER_IMAGE
-                    '''
-                }
-            }
+            echo "=== Running New Container ==="
+            docker run -d --name $DOCKER_CONTAINER -p 8000:8000 $DOCKER_IMAGE
+
+            echo "=== Checking Running Containers ==="
+            docker ps -a
+            '''
         }
     }
-
+}
     post {
         success {
             echo "Pipeline executed successfully!"

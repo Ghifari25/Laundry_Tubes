@@ -20,8 +20,8 @@ pipeline {
                 script {
                     sh '''
                     # Pastikan Dockerfile ada di root repository
-                    if [ ! -f Dockerfile ]; then
-                        echo "Dockerfile not found! Please add a Dockerfile to the repository."
+                    if [ ! -f dockerfile ]; then
+                        echo "dockerfile not found! Please add a Dockerfile to the repository."
                         exit 1
                     fi
 

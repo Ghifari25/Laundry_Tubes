@@ -14,18 +14,21 @@ pipeline {
             }
         }
 
-        stage('Build Docker Image') {
+    stage('Build Docker Image') {
             steps {
                 echo "Building Docker image..."
                 script {
                     sh '''
-                    # Pastikan Dockerfile ada di root repository
+                    echo "=== Current Directory ==="
+                    pwd
+                    echo "=== Files in Directory ==="
+                    ls -la
+        
                     if [ ! -f Dockerfile ]; then
-                        echo "Dockerfile not found! Please add a Dockerfile to the repository."
+                        echo "Dockerfile not found! Exiting..."
                         exit 1
                     fi
-
-                    # Build Docker image
+        
                     docker build -t $DOCKER_IMAGE .
                     '''
                 }

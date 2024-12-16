@@ -2,78 +2,59 @@ pipeline {
     agent any
 
     environment {
-        COMPOSE_PROJECT_NAME = "laundryy_syifa"
+        DOCKER_IMAGE = "laundry_tubes_image"
+        DOCKER_CONTAINER = "laundry_tubes_container"
     }
 
     stages {
-
-        stage("Checkout Repository") {
+        stage('Clone Repository') {
             steps {
-                echo "Checking out GitHub repository..."
-                checkout([$class: 'GitSCM', branches: [[name: '*/main']], 
-                          userRemoteConfigs: [[url: 'https://github.com/Ghifari25/Laundry_Tubes.git', 
-                          credentialsId: 'github-credentials-id']]])
+                echo "Cloning repository..."
+                git branch: 'main', url: 'https://github.com/Ghifari25/Laundry_Tubes.git'
             }
         }
 
-    stage("Validate Docker Compose") {
-        steps {
-            echo "Validating Docker Compose file..."
-            sh 'docker-compose -f docker-compose.yml config'
-        }
-    }
-
-        stage("Build Containers") {
+        stage('Build Docker Image') {
             steps {
-                echo "Building Docker containers..."
-                sh 'docker-compose build'
+                echo "Building Docker image..."
+                script {
+                    sh '''
+                    # Pastikan Dockerfile ada di root repository
+                    if [ ! -f Dockerfile ]; then
+                        echo "Dockerfile not found! Please add a Dockerfile to the repository."
+                        exit 1
+                    fi
+
+                    # Build Docker image
+                    docker build -t $DOCKER_IMAGE .
+                    '''
+                }
             }
         }
 
-        stage("Start Containers") {
+        stage('Run Docker Container') {
             steps {
-                echo "Starting Docker containers..."
-                sh 'docker-compose up -d'
-            }
-        }
+                echo "Running Docker container..."
+                script {
+                    sh '''
+                    # Stop and remove existing container
+                    docker stop $DOCKER_CONTAINER || true
+                    docker rm $DOCKER_CONTAINER || true
 
-        stage("Run Tests") {
-            steps {
-                echo "Installing Composer dependencies..."
-                sh 'docker-compose exec app composer install'
-                
-                echo "Generating application key..."
-                sh 'docker-compose exec app php artisan key:generate'
-                
-                echo "Clearing and caching configuration..."
-                sh 'docker-compose exec app php artisan config:clear'
-                
-                echo "Running database migrations..."
-                sh 'docker-compose exec app php artisan migrate --force'
-                
-                echo "Running Laravel Tests..."
-                sh 'docker-compose exec app php artisan test'
-            }
-        }
-
-        stage("Stop Containers") {
-            steps {
-                echo "Stopping Docker containers..."
-                sh 'docker-compose down'
+                    # Run new container
+                    docker run -d --name $DOCKER_CONTAINER -p 8000:8000 $DOCKER_IMAGE
+                    '''
+                }
             }
         }
     }
 
     post {
-        always {
-            echo "Cleaning up unused Docker resources..."
-            sh 'docker system prune -f'
-        }
         success {
             echo "Pipeline executed successfully!"
         }
         failure {
-            echo "Pipeline execution failed. Please check the logs."
+            echo "Pipeline failed. Please check the logs."
         }
     }
 }

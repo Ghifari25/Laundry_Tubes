@@ -186,9 +186,7 @@
                           </ul>
                         </li>
 
-                        <li class="nav-item {{ (request()->is('dokumentasi')) ? 'active' : '' }}">
-                          <a href="{{url('dokumentasi')}}"><i class="feather icon-folder"></i><span class="menu-item" data-i18n="List">Dokumentasi</span></a>
-                        </li>
+
                     {{-- End Menu Admin --}}
 
                     {{-- Menu Karyawan --}}

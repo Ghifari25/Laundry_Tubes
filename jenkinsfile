@@ -14,21 +14,7 @@ pipeline {
             }
         }
 
-        stage('Build Docker Image') {
-            steps {
-                echo "Building Docker image..."
-                script {
-                    sh '''
-                    echo "=== Current Directory ==="
-                    pwd
 
-                    echo "=== Files in Directory ==="
-                    ls -la
-
-                    if [ ! -f Dockerfile ]; then
-                        echo "Dockerfile not found! Exiting..."
-                        exit 1
-                    fi
 
                     echo "=== Starting Docker Build ==="
                     docker build -t ${DOCKER_IMAGE} . || {

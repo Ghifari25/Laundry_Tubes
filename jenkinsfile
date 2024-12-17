@@ -2,8 +2,8 @@ pipeline {
     agent any
 
     environment {
-        DOCKER_IMAGE = "laundry_tubes_image"
-        DOCKER_CONTAINER = "laundry_tubes_container"
+        DOCKER_IMAGE = "laundryy-syifa"
+        DOCKER_CONTAINER = "laundryy-syifa"
     }
 
     stages {

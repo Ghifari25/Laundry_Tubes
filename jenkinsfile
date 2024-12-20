@@ -1,35 +1,46 @@
 pipeline {
     agent any
+
     environment {
-        DOCKERHUB_CREDENTIALS = credentials('dockerhub-credentials-id')
+        DOCKER_IMAGE = "laundryy-syifa"
+        DOCKER_CONTAINER = "laundryy-syifa"
     }
+
     stages {
-        stage('Checkout') {
+        stage('Clone Repository') {
             steps {
-                git 'https://github.com/Ghifari25/Laundry_Tubes'
+                echo "Cloning repository..."
+                git branch: 'main', url: 'https://github.com/Ghifari25/Laundry_Tubes.git'
             }
         }
-        stage('Build') {
+
+        stage('Run Docker Container') {
             steps {
-                echo 'Building...'
-                sh 'docker build -t laundry_tubes:latest .'
-            }
-        }
-        stage('Test') {
-            steps {
-                echo 'Testing...'
-                // Tambahkan langkah pengujian Anda di sini
-            }
-        }
-        stage('Deploy') {
-            steps {
-                echo 'Deploying...'
+                echo "Running Docker container..."
                 script {
-                    docker.withRegistry('https://index.docker.io/v1/', 'DOCKERHUB_CREDENTIALS') {
-                        sh 'docker push laundry_tubes:latest'
+                    sh '''
+                    # Stop dan hapus container lama jika ada
+                    docker stop ${DOCKER_CONTAINER} || true
+                    docker rm ${DOCKER_CONTAINER} || true
+
+                    # Jalankan container dari image yang sudah ada
+                    docker run -d --name ${DOCKER_CONTAINER} -p 8000:8000 ${DOCKER_IMAGE} || {
+                        echo "Docker run failed! Showing logs:"
+                        docker logs ${DOCKER_CONTAINER} || true
+                        exit 1
                     }
+                    '''
                 }
             }
+        }
+    }
+
+    post {
+        success {
+            echo "Pipeline executed successfully!"
+        }
+        failure {
+            echo "Pipeline failed. Please check the logs."
         }
     }
 }

@@ -19,16 +19,18 @@ pipeline {
                 echo "Running Docker container..."
                 script {
                     sh '''
-                    # Stop dan hapus container lama jika ada
+                    # Hentikan dan hapus container lama jika ada
                     docker stop ${DOCKER_CONTAINER} || true
                     docker rm ${DOCKER_CONTAINER} || true
 
-                    # Jalankan container dari image yang sudah ada
-                    docker run -d --name ${DOCKER_CONTAINER} -p 8000:8000 ${DOCKER_IMAGE} || {
-                        echo "Docker run failed! Showing logs:"
-                        docker logs ${DOCKER_CONTAINER} || true
+                    # Periksa apakah image Docker tersedia
+                    if ! docker image inspect ${DOCKER_IMAGE} > /dev/null 2>&1; then
+                        echo "Docker image ${DOCKER_IMAGE} tidak ditemukan. Harap build atau pull image terlebih dahulu."
                         exit 1
-                    }
+                    fi
+
+                    # Jalankan container
+                    docker run -d --name ${DOCKER_CONTAINER} -p 8000:8000 ${DOCKER_IMAGE}
                     '''
                 }
             }

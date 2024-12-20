@@ -19,20 +19,22 @@ pipeline {
                 echo "Running Docker container..."
                 script {
                     sh '''
-                    # Stop and remove old container
+                    set -x  # Aktifkan debugging untuk melihat perintah yang dijalankan
+
+                    # Hentikan dan hapus container lama jika ada
                     docker stop ${DOCKER_CONTAINER} || true
                     docker rm ${DOCKER_CONTAINER} || true
 
-                    # Verify Docker image exists
+                    # Periksa apakah image tersedia
                     if ! docker image inspect ${DOCKER_IMAGE} > /dev/null 2>&1; then
-                        echo "Docker image ${DOCKER_IMAGE} not found!"
+                        echo "Docker image ${DOCKER_IMAGE} tidak ditemukan. Pastikan image tersedia di mesin Jenkins."
                         exit 1
                     fi
 
-                    # Run new container
+                    # Jalankan container
                     docker run -d --name ${DOCKER_CONTAINER} -p 8000:8000 ${DOCKER_IMAGE}
-
-                    # Check container logs
+                    
+                    # Periksa log container
                     docker logs ${DOCKER_CONTAINER}
                     '''
                 }
@@ -45,7 +47,7 @@ pipeline {
             echo "Pipeline executed successfully!"
         }
         failure {
-            echo "Pipeline failed. Please check the logs."
+            echo "Pipeline failed. Silakan cek log di tahap 'Run Docker Container'."
         }
     }
 }
